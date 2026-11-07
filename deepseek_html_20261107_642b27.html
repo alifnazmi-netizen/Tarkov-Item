@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarkov Item Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  h1 {
+    color: #c9a227;
+    text-align: center;
+    margin-bottom: 25px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  
+  /* TOP TOOLBAR */
+  .top-toolbar {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+  }
+  button {
+    background: #2c2c2c;
+    color: #e0e0e0;
+    border: 1px solid #c9a227;
+    padding: 10px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  button:hover { background: #c9a227; color: #1a1a1a; }
+  button.danger { border-color: #e74c3c; color: #e74c3c; }
+  button.danger:hover { background: #e74c3c; color: #fff; }
+  button.success { border-color: #27ae60; color: #27ae60; }
+  button.success:hover { background: #27ae60; color: #fff; }
+  button.primary { border-color: #3498db; color: #3498db; }
+  button.primary:hover { background: #3498db; color: #fff; }
+  button.small { padding: 5px 10px; font-size: 12px; }
+
+  /* INVENTORY PANEL */
+  .inventory-panel {
+    background: #232323;
+    border: 2px solid #3498db;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  .inventory-panel h2 {
+    color: #3498db;
+    margin-bottom: 15px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .inventory-add-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .inventory-add-row input {
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+  .inventory-add-row input[type="text"] { flex: 1; min-width: 200px; }
+  .inventory-add-row input[type="number"] { width: 100px; }
+  
+  .inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+  }
+  .inv-item {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  /* BIGGER INVENTORY IMAGES */
+  .inv-item img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    background: #111;
+    border-radius: 4px;
+    border: 1px solid #444;
+  }
+  .inv-item .inv-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .inv-item .inv-name {
+    font-size: 15px;
+    font-weight: bold;
+    color: #ddd;
+    word-break: break-word;
+  }
+  .inv-item .inv-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #888;
+  }
+  .inv-item .inv-stats input[type="number"] {
+    width: 55px;
+    background: #111;
+    border: 1px solid #444;
+    color: #27ae60;
+    font-weight: bold;
+    padding: 4px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+  }
+  .inv-item .inv-stats .req-text {
+    color: #c9a227;
+    font-weight: bold;
+  }
+  .inv-controls-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  /* FRACTION SECTIONS */
+  .fraction-section {
+    background: #232323;
+    border: 1px solid #333;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    overflow: hidden;
+  }
+  .fraction-section.complete {
+    border-color: #27ae60;
+    box-shadow: 0 0 12px rgba(39,174,96,0.4);
+  }
+  .fraction-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: #2a2a2a;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .fraction-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #c9a227;
+  }
+  .fraction-title .done-badge {
+    background: #27ae60;
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    letter-spacing: 1px;
+  }
+  .fraction-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .fraction-controls button { padding: 6px 12px; font-size: 12px; }
+
+  .fraction-progress {
+    padding: 8px 18px;
+    font-size: 13px;
+    color: #999;
+    background: #262626;
+    border-bottom: 1px solid #333;
+  }
+  .progress-bar {
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #c9a227, #27ae60);
+    transition: width 0.3s;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+  }
+  th {
+    background: #262626;
+    color: #c9a227;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  tr:hover td { background: #282828; }
+  tr.collected td { background: rgba(39,174,96,0.12); }
+
+  /* BIGGER TABLE IMAGES */
+  .item-img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    background: #111;
+    border-radius: 4px;
+    border: 1px solid #444;
+  }
+  .item-img.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    font-size: 10px;
+  }
+
+  .status-yes { color: #27ae60; font-weight: bold; }
+  .status-no { color: #e74c3c; }
+
+  .row-actions { display: flex; gap: 6px; }
+  .row-actions button { padding: 5px 10px; font-size: 12px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #232323;
+    border: 1px solid #c9a227;
+    border-radius: 10px;
+    padding: 25px;
+    width: 100%;
+    max-width: 450px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 {
+    color: #c9a227;
+    margin-bottom: 18px;
+    font-size: 20px;
+  }
+  .form-group { margin-bottom: 15px; }
+  .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group select {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: #c9a227;
+  }
+  .form-group input[type="file"] { color: #aaa; font-size: 13px; }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  .img-preview {
+    margin-top: 10px;
+    max-width: 100px;
+    max-height: 100px;
+    border: 1px solid #444;
+    border-radius: 5px;
+  }
+  .empty-msg {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+    font-style: italic;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<h1>⚙ Tarkov Item Tracker</h1>
+
+<div class="top-toolbar">
+  <button class="success" onclick="window.openFractionModal()">+ Add Fraction</button>
+  <button class="primary" onclick="window.openItemModal()">+ Add Item</button>
+  <button class="danger" id="resetBtn" onclick="window.handleReset()">Reset All Data</button>
+</div>
+
+<!-- GENERAL INVENTORY PANEL -->
+<div class="inventory-panel">
+  <h2>📦 General Items Inventory (What you own)</h2>
+  <div class="inventory-add-row">
+    <input type="text" id="globalItemName" placeholder="Type item name (e.g. Electric Motor)...">
+    <input type="number" id="globalItemQty" placeholder="Qty" value="1" min="0">
+    <button class="primary" onclick="window.addGlobalItem()">Add to Inventory</button>
+  </div>
+  <div class="inventory-grid" id="inventoryGrid"></div>
+</div>
+
+<!-- FRACTIONS LIST -->
+<div id="app"></div>
+
+<!-- Fraction Modal -->
+<div class="modal-overlay" id="fractionModal">
+  <div class="modal">
+    <h2 id="fractionModalTitle">Add Fraction</h2>
+    <div class="form-group">
+      <label>Fraction Name</label>
+      <input type="text" id="fractionName" placeholder="e.g. Generator">
+    </div>
+    <div class="form-group">
+      <label>Upgrade Level</label>
+      <input type="number" id="fractionLevel" value="1" min="1">
+    </div>
+    <div class="modal-actions">
+      <button onclick="window.closeModals()">Cancel</button>
+      <button class="success" onclick="window.saveFractionData()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Item Requirement Modal -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal">
+    <h2 id="itemModalTitle">Add Required Item</h2>
+    <div class="form-group">
+      <label>Search / Select Item Name</label>
+      <input type="text" id="itemName" placeholder="e.g. Graphics card" list="globalItemList">
+      <datalist id="globalItemList"></datalist>
+    </div>
+    <div class="form-group">
+      <label>Fraction</label>
+      <select id="itemFraction"></select>
+    </div>
+    <div class="form-group">
+      <label>Total Quantity Needed</label>
+      <input type="number" id="itemTotal" value="1" min="1">
+    </div>
+    <div class="form-group">
+      <label>Item Image (optional)</label>
+      <input type="file" id="itemImage" accept="image/*" onchange="window.previewImage(event)">
+      <img id="imgPreview" class="img-preview" style="display:none;">
+    </div>
+    <div class="modal-actions">
+      <button onclick="window.closeModals()">Cancel</button>
+      <button class="success" onclick="window.saveItemData()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden File Input for Inventory Image Upload -->
+<input type="file" id="invImageUpload" accept="image/*" style="display:none;">
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  let data = {
+    inventory: [],       // { id, name, have, image }
+    fractions: [],       // { id, name, level }
+    requiredItems: []    // { id, name, fractionId, total, image }
+  };
+
+  let editingFractionId = null;
+  let editingItemId = null;
+  let currentImageData = null;
+  let editingInvImageId = null; 
+  let resetConfirmPending = false;
+
+  function save() {
+    try { localStorage.setItem('tarkovTrackerV4', JSON.stringify(data)); } catch(e) {}
+  }
+  function load() {
+    try {
+      const saved = localStorage.getItem('tarkovTrackerV4');
+      if (saved) data = JSON.parse(saved);
+    } catch(e) {}
+  }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ==================== RENDER ====================
+  function render() {
+    renderInventory();
+    renderFractions();
+  }
+
+  function renderInventory() {
+    const grid = document.getElementById('inventoryGrid');
+    const datalist = document.getElementById('globalItemList');
+    
+    if (data.inventory.length === 0) {
+      grid.innerHTML = '<div class="empty-msg">Inventory is empty. Add items above.</div>';
+      datalist.innerHTML = '';
+      return;
+    }
+
+    let html = '';
+    let options = '';
+    
+    data.inventory.forEach(inv => {
+      options += `<option value="${escapeHtml(inv.name)}">`;
+      
+      const totalRequired = data.requiredItems
+        .filter(req => req.name.toLowerCase() === inv.name.toLowerCase())
+        .reduce((sum, req) => sum + (req.total || 0), 0);
+
+      html += `<div class="inv-item">
+        ${inv.image 
+          ? `<img src="${inv.image}">` 
+          : `<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="border:none;background:#111">`}
+        
+        <div class="inv-details">
+          <div class="inv-name">${escapeHtml(inv.name)}</div>
+          
+          <div class="inv-stats">
+            Have: <input type="number" min="0" value="${inv.have}" 
+                    onchange="window.updateGlobalHave('${inv.id}', this.value)">
+            <span class="req-text">/ Required: ${totalRequired}</span>
+          </div>
+          
+          <div class="inv-controls-row">
+            <button class="small primary" onclick="window.triggerInvImageUpload('${inv.id}')">📷 Image</button>
+            <button class="small danger" onclick="window.deleteGlobalItem('${inv.id}')">✕ Remove</button>
+          </div>
+        </div>
+      </div>`;
+    });
+    
+    grid.innerHTML = html;
+    datalist.innerHTML = options;
+  }
+
+  function renderFractions() {
+    const app = document.getElementById('app');
+    if (data.fractions.length === 0) {
+      app.innerHTML = '<div class="empty-msg" style="padding:40px;">No fractions yet. Click "+ Add Fraction" to start.</div>';
+      return;
+    }
+
+    let html = '';
+    data.fractions.forEach(f => {
+      const reqItems = data.requiredItems.filter(i => i.fractionId === f.id);
+      
+      let totalNeeded = 0;
+      let totalValidHave = 0;
+      let allDone = reqItems.length > 0; 
+
+      reqItems.forEach(req => {
+        totalNeeded += (req.total || 0);
+        const invItem = data.inventory.find(inv => inv.name.toLowerCase() === req.name.toLowerCase());
+        const have = invItem ? (invItem.have || 0) : 0;
+        totalValidHave += Math.min(have, req.total || 0);
+        
+        if (have < req.total) allDone = false;
+      });
+
+      const pct = totalNeeded > 0 ? Math.round((totalValidHave / totalNeeded) * 100) : 0;
+      
+      if (allDone && totalNeeded > 0) {
+        html += `<div class="fraction-section complete">`;
+      } else {
+        html += `<div class="fraction-section">`;
+      }
+
+      html += `
+        <div class="fraction-header">
+          <div class="fraction-title">
+            ${escapeHtml(f.name)} — Lv ${f.level}
+            ${(allDone && totalNeeded > 0) ? '<span class="done-badge">✓ COMPLETE</span>' : ''}
+          </div>
+          <div class="fraction-controls">
+            <button onclick="window.openFractionModal('${f.id}')">Edit</button>
+            <button onclick="window.openItemModal(null, '${f.id}')">+ Add Req Item</button>
+            <button class="danger" onclick="window.deleteFraction('${f.id}')">Delete</button>
+          </div>
+        </div>
+        <div class="fraction-progress">
+          Progress: ${totalValidHave} / ${totalNeeded} (${pct}%) • ${reqItems.length} item(s) required
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        </div>`;
+
+      if (reqItems.length === 0) {
+        html += `<div class="empty-msg">No required items added to this fraction yet.</div>`;
+      } else {
+        html += `<table>
+          <thead>
+            <tr>
+              <th>Img</th>
+              <th>Required Item</th>
+              <th>Need</th>
+              <th>Have (Global)</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>`;
+          
+        reqItems.forEach(req => {
+          const invItem = data.inventory.find(inv => inv.name.toLowerCase() === req.name.toLowerCase());
+          const have = invItem ? (invItem.have || 0) : 0;
+          const isDone = have >= req.total;
+          
+          let imgSrc = req.image || (invItem ? invItem.image : null);
+          
+          html += `<tr class="${isDone ? 'collected' : ''}">
+            <td>${imgSrc ? `<img src="${imgSrc}" class="item-img">` : `<div class="item-img placeholder">N/A</div>`}</td>
+            <td>${escapeHtml(req.name)}</td>
+            <td>${req.total}</td>
+            <td>${have}</td>
+            <td class="${isDone ? 'status-yes' : 'status-no'}">
+              ${isDone ? '✓ Ready' : '✗ Missing'}
+            </td>
+            <td>
+              <div class="row-actions">
+                <button onclick="window.openItemModal('${req.id}')">Edit</button>
+                <button class="danger" onclick="window.deleteItem('${req.id}')">✕</button>
+              </div>
+            </td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+      }
+      html += `</div>`;
+    });
+    app.innerHTML = html;
+  }
+
+  // ==================== ACTIONS: INVENTORY ====================
+  window.addGlobalItem = function() {
+    const nameEl = document.getElementById('globalItemName');
+    const qtyEl = document.getElementById('globalItemQty');
+    const name = nameEl.value.trim();
+    const qty = parseInt(qtyEl.value) || 0;
+
+    if (!name) { alert('Enter an item name.'); return; }
+    
+    const existing = data.inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      existing.have += qty;
+    } else {
+      data.inventory.push({ id: uid(), name, have: qty, image: null });
+    }
+    
+    nameEl.value = '';
+    qtyEl.value = 1;
+    save();
+    render();
+    nameEl.focus();
+  };
+
+  window.updateGlobalHave = function(id, val) {
+    const inv = data.inventory.find(i => i.id === id);
+    if (inv) {
+      inv.have = Math.max(0, parseInt(val) || 0);
+      save();
+      render();
+    }
+  };
+
+  window.deleteGlobalItem = function(id) {
+    data.inventory = data.inventory.filter(i => i.id !== id);
+    save();
+    render();
+  };
+
+  // Inventory Image Handling
+  window.triggerInvImageUpload = function(id) {
+    editingInvImageId = id;
+    document.getElementById('invImageUpload').click();
+  };
+
+  document.getElementById('invImageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file || !editingInvImageId) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const inv = data.inventory.find(i => i.id === editingInvImageId);
+      if (inv) {
+        inv.image = ev.target.result;
+        
+        // Also sync this image to any required items using the same name
+        data.requiredItems.forEach(req => {
+          if (req.name.toLowerCase() === inv.name.toLowerCase()) {
+            req.image = ev.target.result;
+          }
+        });
+        
+        save();
+        render();
+      }
+      editingInvImageId = null;
+      e.target.value = ''; 
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ==================== ACTIONS: FRACTIONS ====================
+  window.deleteFraction = function(id) {
+    data.fractions = data.fractions.filter(f => f.id !== id);
+    data.requiredItems = data.requiredItems.filter(i => i.fractionId !== id);
+    save();
+    render();
+  };
+
+  window.openFractionModal = function(id = null) {
+    editingFractionId = id;
+    const title = document.getElementById('fractionModalTitle');
+    const nameEl = document.getElementById('fractionName');
+    const levelEl = document.getElementById('fractionLevel');
+
+    if (id) {
+      const f = data.fractions.find(x => x.id === id);
+      title.textContent = 'Edit Fraction';
+      nameEl.value = f.name;
+      levelEl.value = f.level;
+    } else {
+      title.textContent = 'Add Fraction';
+      nameEl.value = '';
+      levelEl.value = 1;
+    }
+    document.getElementById('fractionModal').classList.add('active');
+    nameEl.focus();
+  };
+
+  window.saveFractionData = function() {
+    const name = document.getElementById('fractionName').value.trim();
+    const level = parseInt(document.getElementById('fractionLevel').value) || 1;
+    if (!name) { alert('Enter a fraction name'); return; }
+
+    if (editingFractionId) {
+      const f = data.fractions.find(x => x.id === editingFractionId);
+      f.name = name;
+      f.level = level;
+    } else {
+      data.fractions.push({ id: uid(), name, level });
+    }
+    save();
+    window.closeModals();
+    render();
+  };
+
+  // ==================== ACTIONS: REQUIRED ITEMS ====================
+  window.deleteItem = function(id) {
+    data.requiredItems = data.requiredItems.filter(i => i.id !== id);
+    save();
+    render();
+  };
+
+  window.openItemModal = function(id = null, presetFractionId = null) {
+    if (data.fractions.length === 0) {
+      alert('Add a fraction first!');
+      return;
+    }
+    editingItemId = id;
+    currentImageData = null;
+
+    const title = document.getElementById('itemModalTitle');
+    const sel = document.getElementById('itemFraction');
+    sel.innerHTML = data.fractions.map(f =>
+      `<option value="${f.id}">${escapeHtml(f.name)} — Lv ${f.level}</option>`).join('');
+
+    const preview = document.getElementById('imgPreview');
+    preview.style.display = 'none';
+    preview.src = '';
+
+    if (id) {
+      const req = data.requiredItems.find(x => x.id === id);
+      title.textContent = 'Edit Required Item';
+      document.getElementById('itemName').value = req.name;
+      document.getElementById('itemTotal').value = req.total;
+      sel.value = req.fractionId;
+      if (req.image) {
+        currentImageData = req.image;
+        preview.src = req.image;
+        preview.style.display = 'block';
+      }
+    } else {
+      title.textContent = 'Add Required Item';
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemTotal').value = 1;
+      if (presetFractionId) sel.value = presetFractionId;
+    }
+    document.getElementById('itemModal').classList.add('active');
+    document.getElementById('itemName').focus();
+  };
+
+  window.previewImage = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      currentImageData = ev.target.result;
+      const preview = document.getElementById('imgPreview');
+      preview.src = currentImageData;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.saveItemData = function() {
+    const name = document.getElementById('itemName').value.trim();
+    const fractionId = document.getElementById('itemFraction').value;
+    const total = parseInt(document.getElementById('itemTotal').value) || 1;
+
+    if (!name) { alert('Enter an item name'); return; }
+    if (!fractionId) { alert('Select a fraction'); return; }
+
+    if (editingItemId) {
+      const req = data.requiredItems.find(x => x.id === editingItemId);
+      req.name = name;
+      req.fractionId = fractionId;
+      req.total = total;
+      if (currentImageData) req.image = currentImageData;
+    } else {
+      data.requiredItems.push({
+        id: uid(), name, fractionId, total,
+        image: currentImageData || null
+      });
+      
+      const exists = data.inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+      if (!exists) {
+        data.inventory.push({ id: uid(), name, have: 0, image: currentImageData || null });
+      }
+    }
+    save();
+    window.closeModals();
+    render();
+  };
+
+  // ==================== MODAL & RESET ====================
+  window.closeModals = function() {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+    editingFractionId = null;
+    editingItemId = null;
+    currentImageData = null;
+  };
+
+  // 2-step confirmation reset without native confirm()
+  window.handleReset = function() {
+    const btn = document.getElementById('resetBtn');
+    if (!resetConfirmPending) {
+      resetConfirmPending = true;
+      btn.textContent = '⚠ Click Again to Confirm Reset';
+      btn.style.background = '#e74c3c';
+      btn.style.color = '#fff';
+      setTimeout(() => {
+        resetConfirmPending = false;
+        btn.textContent = 'Reset All Data';
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 3000); // resets after 3 seconds if not clicked again
+    } else {
+      data = { inventory: [], fractions: [], requiredItems: [] };
+      save();
+      render();
+      resetConfirmPending = false;
+      btn.textContent = 'Reset All Data';
+      btn.style.background = '';
+      btn.style.color = '';
+    }
+  };
+
+  // INIT
+  load();
+  render();
+});
+</script>
+
+</body>
+</html>
